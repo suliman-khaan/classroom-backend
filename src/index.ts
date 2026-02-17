@@ -16,7 +16,7 @@ app.use(express.json());
 
 app.use('/api/subjects', subjectRouter)
 
-app.get('/', (_req, res) => {
+app.get('/', (req, res) => {
     res.json({message: 'Express + TypeScript with Neon is ready!'});
 });
 
