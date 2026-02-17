@@ -4,36 +4,43 @@ import {departments, subjects} from "../db/schema";
 import {db} from "../db"
 
 const router = express.Router();
+
+function escapeLike(str: string): string {
+    return str.replace(/[\\%_]/g, "\\$&");
+}
+
 router.get('/', async (req, res) => {
     //get all the subjects with optional search, filtering and pagination.
     try {
         const {search, department, page = 1, limit = 10} = req.query;
 
-        const currentPage = Math.max(1, +page);
-        const limitPerPage = Math.max(1, +limit);
+        const currentPage = Math.max(1, Number(page) || 1);
+        const limitPerPage = Math.min(100, Math.max(1, Number(limit) || 10));
 
         const offset = (currentPage - 1) * limitPerPage;
 
         const filterConditions = []
 
         if (search) {
+            const escapedSearch = escapeLike(String(search));
             filterConditions.push(
                 or(
-                    ilike(subjects.name, `%${search}%`),
-                    ilike(subjects.code, `%${search}%`),
+                    ilike(subjects.name, `%${escapedSearch}%`),
+                    ilike(subjects.code, `%${escapedSearch}%`),
                 )
             );
         }
         if (department) {
+            const escapedDepartment = escapeLike(String(department));
             filterConditions.push(
                 or(
-                    ilike(departments.name, `%${department}%`),
+                    ilike(departments.name, `%${escapedDepartment}%`),
                 )
             )
         }
 
         const whereClause = filterConditions.length > 0 ? and(...filterConditions) : undefined;
-        const countResult = await db.select({count: sql<number>`count(*)`})
+        const countResult = await db.select({count: sql<number>`cast(count(*) as integer)`})
             .from(subjects)
             .leftJoin(departments, eq(subjects.departmentId, departments.id))
             .where(whereClause);
