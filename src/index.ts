@@ -1,56 +1,26 @@
-import { eq } from 'drizzle-orm';
-// The 'pool' export will only exist for WebSocket and node-postgres drivers
-import { index, pool } from './db';
-import { demoUsers } from './db/schema';
+import express from 'express';
+import cors from 'cors'
+import subjectRouter from "./routes/subjects";
 
-async function main() {
-  try {
-    console.log('Performing CRUD operations...');
+const app = express();
+const PORT = 8000;
 
-    // CREATE: Insert a new user
-    const [newUser] = await index
-      .insert(demoUsers)
-      .values({ name: 'Admin User', email: 'admin@example.com' })
-      .returning();
+if(process.env.FRONTEND_URL) throw new Error('FRONTEND_URL is not set in .env file');
+app.use(cors({
+    origin: process.env.FRONTEND_URL,
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true
+}))
 
-    if (!newUser) {
-      throw new Error('Failed to create user');
-    }
+app.use(express.json());
 
-    console.log('CREATE: New user created:', newUser);
+app.use('/api/subjects', subjectRouter)
 
-    // READ: Select the user
-    const foundUser = await index.select().from(demoUsers).where(eq(demoUsers.id, newUser.id));
-    console.log('READ: Found user:', foundUser[0]);
+app.get('/', (req, res) => {
+    res.json({message: 'Express + TypeScript with Neon is ready!'});
+});
 
-    // UPDATE: Change the user's name
-    const [updatedUser] = await index
-      .update(demoUsers)
-      .set({ name: 'Super Admin' })
-      .where(eq(demoUsers.id, newUser.id))
-      .returning();
 
-    if (!updatedUser) {
-      throw new Error('Failed to update user');
-    }
-
-    console.log('UPDATE: User updated:', updatedUser);
-
-    // DELETE: Remove the user
-    await index.delete(demoUsers).where(eq(demoUsers.id, newUser.id));
-    console.log('DELETE: User deleted.');
-
-    console.log('\nCRUD operations completed successfully.');
-  } catch (error) {
-    console.error('Error performing CRUD operations:', error);
-    process.exit(1);
-  } finally {
-    // If the pool exists, end it to close the connection
-    if (pool) {
-      await pool.end();
-      console.log('Database pool closed.');
-    }
-  }
-}
-
-void main();
+app.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`);
+});
